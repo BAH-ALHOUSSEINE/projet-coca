@@ -15,6 +15,7 @@
  * @param player A player.
  * @return Z3_ast The variable.
  */
+//vij
 Z3_ast variable_node_associated_to_player(Z3_context ctx, int node, int player)
 {
     char name[40];
@@ -55,6 +56,76 @@ Z3_ast variable_count(Z3_context ctx, int node, int position, int player)
     snprintf(name, 40, "M[%d,%d - %d]", node, position, player);
     return mk_bool_var(ctx, name);
 }
+Z3_ast un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (Z3_context ctx, int node , int num_players)
+{
+    Z3_ast tabvar[num_players];
+
+    for (int player = 0; player < num_players; player++)
+    {
+        Z3_ast var = variable_node_associated_to_player(ctx, i, player);
+        tabvar[player] = var;
+    }
+
+    Z3_ast result = Z3_mk_or(ctx, num_players, tabvar);
+
+    free(tabvar);
+
+    return result;
+}
+
+Z3_ast chaque_sommet_a_et_alloue_a_au_moins_un_participant(Z3_context ctx, int num_nodes , int num_players){
+  
+    Z3_ast tabvar[num_nodes];
+    
+    int current=0;
+    for (int node = 0; node < num_nodes; node++)
+    {
+       
+            tabvar[node]=un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (ctx,node ,num_players)
+    }
+
+     Z3_ast result = Z3_mk_and(ctx, num_node, tabvar);
+    
+}
+Z3_ast sommet_est_alloue_a_au_plus_un_participant(Z3_context ctx, int node , int num_players)
+{
+    Z3_ast tabvar[num_players];
+
+    
+    for (int player = 0; player < num_players; player++)
+    {
+        Z3_ast var = variable_node_associated_to_player(ctx, node, player);
+        Z3_ast negated_var = Z3_mk_not(ctx, var);
+        disjunctions[player] = negated_var;
+    }
+
+    Z3_ast result = Z3_mk_or(ctx, num_players, tabvar);
+
+    free(disjunctions);
+
+    return result;
+}
+Z3_ast is_partition(Z3_context ctx, int num_nodes, int num_players)
+{
+    Z3_ast condition1 = chaque_sommet_a_et_alloue_a_au_moins_un_participant(ctx, num_nodes, num_players);
+
+    Z3_ast* conjunctions = (Z3_ast*)malloc(num_nodes * sizeof(Z3_ast));
+
+    for (int node = 0; node < num_nodes; node++)
+    {
+        Z3_ast condition2 = sommet_est_alloue_a_au_plus_un_participant(ctx, node, num_players);
+        conjunctions[node] = condition2;
+    }
+
+    Z3_ast condition2_combined = Z3_mk_and(ctx, num_nodes, conjunctions);
+
+    Z3_ast result = Z3_mk_and(ctx, 2, (Z3_ast[]){condition1, condition2_combined});
+
+    free(conjunctions);
+
+    return result;
+}
+
 
 
 Z3_ast repartition_reduction(Z3_context ctx, const RepartitionGraph graph)
