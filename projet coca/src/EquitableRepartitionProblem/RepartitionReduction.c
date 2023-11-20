@@ -62,13 +62,13 @@ Z3_ast un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (Z3_context ctx, 
 
     for (int player = 0; player < num_players; player++)
     {
-        Z3_ast var = variable_node_associated_to_player(ctx, i, player);
+        Z3_ast var = variable_node_associated_to_player(ctx, player, player);
         tabvar[player] = var;
     }
 
     Z3_ast result = Z3_mk_or(ctx, num_players, tabvar);
 
-    free(tabvar);
+   // free(tabvar);
 
     return result;
 }
@@ -77,15 +77,16 @@ Z3_ast chaque_sommet_a_et_alloue_a_au_moins_un_participant(Z3_context ctx, int n
   
     Z3_ast tabvar[num_nodes];
     
-    int current=0;
+    
+
     for (int node = 0; node < num_nodes; node++)
     {
        
-            tabvar[node]=un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (ctx,node ,num_players)
+            tabvar[node]=un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (ctx,node ,num_players);
     }
 
-     Z3_ast result = Z3_mk_and(ctx, num_node, tabvar);
-    
+     Z3_ast result = Z3_mk_and(ctx, num_nodes, tabvar);
+    return result;
 }
 Z3_ast sommet_est_alloue_a_au_plus_un_participant(Z3_context ctx, int node , int num_players)
 {
@@ -96,12 +97,12 @@ Z3_ast sommet_est_alloue_a_au_plus_un_participant(Z3_context ctx, int node , int
     {
         Z3_ast var = variable_node_associated_to_player(ctx, node, player);
         Z3_ast negated_var = Z3_mk_not(ctx, var);
-        disjunctions[player] = negated_var;
+        tabvar[player] = negated_var;
     }
 
     Z3_ast result = Z3_mk_or(ctx, num_players, tabvar);
 
-    free(disjunctions);
+   // free(tabvar);
 
     return result;
 }
@@ -126,32 +127,79 @@ Z3_ast is_partition(Z3_context ctx, int num_nodes, int num_players)
     return result;
 }
 
+Z3_ast implication_connexe(Z3_context ctx, int node, int nodeprime, int players, int limite) {
+    Z3_ast tabvar[2];
+    // Assuming player is a variable of type int
+    tabvar[0] = variable_node_associated_to_player(ctx, node, players);
+    tabvar[1] = variable_node_associated_to_player(ctx, nodeprime, players);
+    Z3_ast C_varforchal = variable_floyd_warshall(ctx, node, nodeprime, limite, players);
+    Z3_ast tabvars = Z3_mk_and(ctx, 2, (Z3_ast[]){tabvar[0], tabvar[1]});
+    return Z3_mk_implies(ctx, tabvars, C_varforchal);
+}
+
+Z3_ast  is_arrete_existe (Z3_context ctx, int node, int nodeprime, int players, int limite ,const RepartitionGraph graph){
+  
+   if(rg_is_edge(graph, node, nodeprime)==true){
+
+       return implication_connexe(ctx, node ,nodeprime, players,limite); 
+   }
+
+       Z3_ast tabvar[2];
+       tabvar[0] = variable_node_associated_to_player(ctx, node, players);
+       tabvar[1] = variable_node_associated_to_player(ctx, nodeprime, players);
+       Z3_ast tabvars = Z3_mk_and(ctx, 2, (Z3_ast[]){tabvar[0], tabvar[1]});
+       Z3_ast negated_var = Z3_mk_not(ctx, tabvars);
+       return  negated_var;
+}
+
+Z3_ast isconnexeR(Z3_context ctx,int num_nodes,int num_players,const RepartitionGraph graph){
+     
+    Z3_ast tabvard[num_players*(num_nodes*(num_nodes*num_nodes))];
+    int i=0;
+    Z3_ast tabvarcs;
+    Z3_ast tabvarc[2];
+    for (int player = 0; player < num_players; player++){
+        for (int level = 0; level < num_nodes; level++)
+        {
+            for (int n1 = 0; n1 < num_nodes; n1++){
+                for (int n2 = 0; n2 < num_nodes; n2++)
+                {
+                  if(n1!=level && n2!=level){
+                       tabvard[i]= is_arrete_existe(ctx, n1 ,n2, player,level-1,graph);
+                        i++;
+                  }
+                  else{
+                      if(n1==level && n2==level){
+                         tabvarc[0] = is_arrete_existe(ctx, n1 ,level, player,level-1,graph);
+                         tabvarc[1] = is_arrete_existe(ctx, level ,n2, player,level-1,graph);
+                         tabvarcs = Z3_mk_and(ctx, 2, (Z3_ast[]){tabvarc[0], tabvarc[1]});
+                          tabvard[i]=tabvarcs;
+                          i++;
+                      } 
+                  }
+                 }   
+            }
+            }
+    }
+
+    return   Z3_mk_or(ctx, i, tabvard);
+}
+
+
+
+
 
 
 Z3_ast repartition_reduction(Z3_context ctx, const RepartitionGraph graph)
 {
-    printf("Reduction not implemented\n");
-    return Z3_mk_false(ctx);
-    /*À remplacer par votre implémentation.
-    La fonction doit renvoyer une formule de la logique propositionnelle qui encode l’existence d’une partition connexe équitable.
-    On ne demande pas que la formule produite soit en CNF (Z3 se débrouillera), on recommande d’ailleurs qu’elle ne le soit pas pour être plus lisible.
-    Découpez votre code en petites fonctions auxiliaires générant des formules simples ou connectant des formules venant d’autres fonctions. Basez-vous sur le sujet pour le découpage (encore pour la visibilité et votre confort de débuggage).
-    Faites attention aux tailles dans les fonctions Z3_mk_and et Z3_mk_or (source de bug -- si vous avez des erreurs se plaignant de code qui ne devrait pas être atteint, cela vient probablement de là). Reportez-vous à la documentation <https://z3prover.github.io/api/html/group__capi.html>.
-    Un Z3_ast représente une formule de la logique propositionnel.
-    Vous aurez évidemment besoin de tableaux contenant des Z3_ast.
-    Utilisez les fonctions fournies en tête de ce fichier pour générer les variables propositionnelles nécessaires à votre formule.
-    Dans la réalisation de cette fonction pour la solution du projet, les fonctions de Z3 utilisées sont les suivantes :
-    Z3_mk_and, Z3_mk_or, Z3_mk_implies, Z3_mk_eq, Z3_mk_not
-    La fonction uniqueFormula de Z3Tools.h (du présent projet) a également été utilisée.
-    Les fonctions de RepartitionGraph.h utilisées sont :
-    rg_get_num_nodes, rg_get_num_players, rg_is_edge, rg_get_weight, rg_get_total_weights.
-    Si vous êtes tentés d’utiliser d’autres fonctions que celles listées ci-dessus, vous êtes probablement en train de vous tromper.
-    Pour information, l’implémentation réalisée comme solution porte ce fichier à 180 lignes -- sans ce bloc de commentaires (ce qui est totalement indicatif, mais si vous obtenez 400 lignes, vous êtes potentiellement en train de vous compliquer la vie pour rien).
-
-    Procédez par étape, tranquillement, en compilant régulièrement, et regardez les formules générées grâce à l’option -F du programme principal (en les renvoyant dans cette présente fonction).
-
-    Le reste du fichier vous est fourni : les fonctions en haut du fichier sont celles qui génèrent les variables nécessaires. Celle suivantes permettent de décoder et d’afficher une valuation obtenue à partir d’une formule satisfaite. La résolution de la formule est effectuée dans la fonction main (main.c), vous n’avez pas à le faire.
-    */
+    int num_players = rg_get_num_players(graph);
+    int num_nodes=  rg_get_num_nodes(graph);
+     Z3_ast tabF[2];
+     tabF[0]= is_partition(ctx,num_nodes, num_players);
+     tabF[1] =  isconnexeR(ctx,num_nodes,num_players,graph);
+   
+    return   Z3_mk_and(ctx, 2, (Z3_ast[]){tabF[0], tabF[1]});;
+   
 }
 
 void repartition_set_partition_from_model(Z3_context ctx, Z3_model model, RepartitionGraph graph)
