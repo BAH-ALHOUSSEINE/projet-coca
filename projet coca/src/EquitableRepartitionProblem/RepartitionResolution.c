@@ -1,39 +1,65 @@
 #include "RepartitionResolution.h"
 #include <stdlib.h>
 #include <stdio.h>
+void dfs(RepartitionGraph graph, int player, int node, bool *visited) {
+    visited[node] = true;
 
+    for (int neighbor = 0; neighbor < rg_get_num_nodes(graph); neighbor++) {
+        if (!visited[neighbor] &&
+            rg_get_player_of_node_in_partition(graph, neighbor) == player &&
+            rg_is_edge(graph, node, neighbor)) {
+            dfs(graph, player, neighbor, visited);
+        }
+    }
+}
 
+// Fonction principale avec parcours en profondeur (DFS)
 bool isconnexe(RepartitionGraph graph) {
     int num_nodes = rg_get_num_nodes(graph);
     int num_players = rg_get_num_players(graph);
 
     for (int player = 0; player < num_players; player++) {
-        bool is_player_connexe = true;  // Supposons d'abord que le sous-graphe est connexe
+        bool is_player_connexe = false;  // Supposons d'abord que le sous-graphe n'est pas connexe
 
+        // Recherchez un nœud attribué au joueur
         for (int node = 0; node < num_nodes; node++) {
             if (rg_get_player_of_node_in_partition(graph, node) == player) {
-                for (int neighbor = 0; neighbor < num_nodes; neighbor++) {
-                    if (rg_get_player_of_node_in_partition(graph, neighbor) == player &&
-                        rg_is_edge(graph, node, neighbor)) {
-                        // Le nœud et son voisin sont attribués au même joueur et sont connectés
-                        break;
-                    }
+                // Initialisez un tableau de booléens pour suivre les nœuds visités pendant DFS
+                bool *visited = malloc(num_nodes * sizeof(bool));
+                for (int i = 0; i < num_nodes; i++) {
+                    visited[i] = false;
+                }
 
-                    if (neighbor == num_nodes - 1) {
-                        // Le nœud n'a pas de voisin attribué au même joueur
-                        is_player_connexe = false;
+                // Effectuez DFS à partir du nœud attribué au joueur
+                dfs(graph, player, node, visited);
+
+                // Vérifiez si tous les nœuds attribués au joueur ont été visités (sous-graphe connexe)
+                bool all_nodes_visited = true;
+                for (int i = 0; i < num_nodes; i++) {
+                    if (rg_get_player_of_node_in_partition(graph, i) == player && !visited[i]) {
+                        all_nodes_visited = false;
+                        break;
                     }
                 }
 
-                if (!is_player_connexe) {
-                    // Le sous-graphe n'est pas connexe pour ce joueur
-                    return false;
+                // Libérez la mémoire allouée pour le tableau visited
+                free(visited);
+
+                if (all_nodes_visited) {
+                    is_player_connexe = true;
+                    break;  // Pas besoin de vérifier d'autres nœuds pour ce joueur
                 }
             }
         }
+
+        // Si le sous-graphe est connexe pour au moins un joueur, retournez true
+        if (is_player_connexe) {
+            return true;
+        }
     }
 
-    return true;  // Tous les sous-graphes sont connexes
+    // Aucun sous-graphe connexe trouvé pour aucun joueur
+    return false;
 }
 
 bool is_equitable(RepartitionGraph graph) {
@@ -93,12 +119,5 @@ bool repartition_brute_force(RepartitionGraph graph)
 {
     printf("Brute Force not implemented\n");
     return   repartition_brute_force_recursive(graph, 0);
-    /*À remplacer par votre implémentation du brute-force.
-    Cette fonction doit probablement simplement appeler une fonction récursive construisant pas à pas une partition, puis appelant un vérificateur sur chaque partition complète.
-    Votre vérificateur devrait être séparé de cette fonction récursive (sauf si vous faites des vérifications sur des partitions partielles, mais cela me semble peu adéquat ici). Votre vérificateur devant vérifier deux propriétés différentes, il vous est conseillé de faire une fonction pour chacune de ces propriétés.
-    Les fonctions de RepartitionGraph.h utilisées dans notre solution de cette résolution sont les suivantes :
-    rg_get_num_nodes, rg_get_num_players, rg_is_edge, rg_get_player_of_node_in_partition, rg_set_player_of_node_partition.
-    Si vous sentez le besoin de fonctions qui ne sont pas dans cette liste, vous êtes potentiellement en train de vous planter (rg_reset_partition pouvant cependant être utile, mais on peut faire sans).
-    Notre implémentation (sans ce bloc de commentaire), porte ce fichier à 94 lignes. Cette valeur n’est évidemment qu’une indication, mais si vous dépassez les 300 lignes, il est probable que vous vous compliquiez la vie.
-    */
+   
 }
