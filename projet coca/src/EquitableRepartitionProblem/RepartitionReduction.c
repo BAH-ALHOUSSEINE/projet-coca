@@ -50,12 +50,16 @@ Z3_ast variable_floyd_warshall(Z3_context ctx, int node1, int node2, int limit, 
  * @param player A player.
  * @return Z3_ast The variable.
  */
+
+
 Z3_ast variable_count(Z3_context ctx, int node, int position, int player)
 {
     char name[40];
     snprintf(name, 40, "M[%d,%d - %d]", node, position, player);
     return mk_bool_var(ctx, name);
 }
+
+
 Z3_ast un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (Z3_context ctx, int node , int num_players)
 {
     Z3_ast tabvar[num_players];
@@ -73,7 +77,9 @@ Z3_ast un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (Z3_context ctx, 
     return result;
 }
 
-Z3_ast chaque_sommet_a_et_alloue_a_au_moins_un_participant(Z3_context ctx, int num_nodes , int num_players){
+
+
+Z3_ast chaque_sommet_a_et_alloue_a_au_moins_un_participant(Z3_context ctx, int num_nodes , int num_player){
   
     Z3_ast tabvar[num_nodes];
     
@@ -82,12 +88,15 @@ Z3_ast chaque_sommet_a_et_alloue_a_au_moins_un_participant(Z3_context ctx, int n
     for (int node = 0; node < num_nodes; node++)
     {
        
-            tabvar[node]=un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (ctx,node ,num_players);
+            tabvar[node]=un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (ctx,node ,num_player);
     }
 
      Z3_ast result = Z3_mk_and(ctx, num_nodes, tabvar);
     return result;
 }
+
+
+
 Z3_ast sommet_est_alloue_a_au_plus_un_participant(Z3_context ctx, int node , int num_players)
 {
     Z3_ast tabvar[num_players];
@@ -102,10 +111,12 @@ Z3_ast sommet_est_alloue_a_au_plus_un_participant(Z3_context ctx, int node , int
 
     Z3_ast result = Z3_mk_or(ctx, num_players, tabvar);
 
-   // free(tabvar);
+   
 
     return result;
 }
+
+
 Z3_ast is_partition(Z3_context ctx, int num_nodes, int num_players)
 {
     Z3_ast condition1 = chaque_sommet_a_et_alloue_a_au_moins_un_participant(ctx, num_nodes, num_players);
@@ -127,6 +138,8 @@ Z3_ast is_partition(Z3_context ctx, int num_nodes, int num_players)
     return result;
 }
 
+
+
 Z3_ast implication_connexe(Z3_context ctx, int node, int nodeprime, int players, int limite) {
     Z3_ast tabvar[2];
     // Assuming player is a variable of type int
@@ -137,7 +150,9 @@ Z3_ast implication_connexe(Z3_context ctx, int node, int nodeprime, int players,
     return Z3_mk_implies(ctx, tabvars, C_varforchal);
 }
 
-Z3_ast  is_arrete_existe (Z3_context ctx, int node, int nodeprime, int players, int limite ,const RepartitionGraph graph){
+
+
+Z3_ast  verification_arrete (Z3_context ctx, int node, int nodeprime, int players, int limite ,const RepartitionGraph graph){
   
    if(rg_is_edge(graph, node, nodeprime)==true){
 
@@ -152,6 +167,8 @@ Z3_ast  is_arrete_existe (Z3_context ctx, int node, int nodeprime, int players, 
        return  negated_var;
 }
 
+
+
 Z3_ast isconnexeR(Z3_context ctx,int num_nodes,int num_players,const RepartitionGraph graph){
      
     Z3_ast tabvard[num_players*(num_nodes*(num_nodes*num_nodes))];
@@ -165,13 +182,13 @@ Z3_ast isconnexeR(Z3_context ctx,int num_nodes,int num_players,const Repartition
                 for (int n2 = 0; n2 < num_nodes; n2++)
                 {
                   if(n1!=level && n2!=level){
-                       tabvard[i]= is_arrete_existe(ctx, n1 ,n2, player,level-1,graph);
+                       tabvard[i]= verification_arrete(ctx, n1 ,n2, player,level-1,graph);
                         i++;
                   }
                   else{
                       if(n1==level && n2==level){
-                         tabvarc[0] = is_arrete_existe(ctx, n1 ,level, player,level-1,graph);
-                         tabvarc[1] = is_arrete_existe(ctx, level ,n2, player,level-1,graph);
+                         tabvarc[0] = verification_arrete(ctx, n1 ,level, player,level-1,graph);
+                         tabvarc[1] = verification_arrete(ctx, level ,n2, player,level-1,graph);
                          tabvarcs = Z3_mk_and(ctx, 2, (Z3_ast[]){tabvarc[0], tabvarc[1]});
                           tabvard[i]=tabvarcs;
                           i++;
@@ -186,6 +203,41 @@ Z3_ast isconnexeR(Z3_context ctx,int num_nodes,int num_players,const Repartition
 }
 
 
+Z3_ast sommet_i_est_pas_le_Seme_et_Sprime(Z3_context ctx, int node , int players,RepartitionGraph graph)
+{
+    
+
+    int C =  rg_get_total_weights(graph)/rg_get_num_players(graph);
+    Z3_ast tabvar[C];
+    for (int position = 0; position < C; position++)
+    {
+        Z3_ast var = variable_count(ctx,node, position, players);
+        Z3_ast negated_var = Z3_mk_not(ctx, var);
+        tabvar[position] = negated_var;
+    }
+
+    Z3_ast result = Z3_mk_or(ctx,C, tabvar);
+
+   
+
+    return result;
+}
+
+Z3_ast chaque_S_a_un_sommet(Z3_context ctx, int num_nodes , int num_player){
+  
+    Z3_ast tabvar[num_nodes];
+    
+    
+
+    for (int node = 0; node < num_nodes; node++)
+    {
+       
+            tabvar[node]=un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (ctx,node ,num_player);
+    }
+
+     Z3_ast result = Z3_mk_and(ctx, num_nodes, tabvar);
+    return result;
+}
 
 
 
