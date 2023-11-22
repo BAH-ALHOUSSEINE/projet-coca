@@ -17,12 +17,12 @@ void dfs(RepartitionGraph graph, int player, int node, bool *visited) {
 bool isconnexe(RepartitionGraph graph) {
     int num_nodes = rg_get_num_nodes(graph);
     int num_players = rg_get_num_players(graph);
-
+     bool all_nodes_visited = true;
     for (int player = 0; player < num_players; player++) {
         bool is_player_connexe = false;  // Supposons d'abord que le sous-graphe n'est pas connexe
 
         // Recherchez un nœud attribué au joueur
-        for (int node = 0; node < num_nodes; node++) {
+        for (int node = 0; node < num_nodes; node++) { 
             if (rg_get_player_of_node_in_partition(graph, node) == player) {
                 // Initialisez un tableau de booléens pour suivre les nœuds visités pendant DFS
                 bool *visited = malloc(num_nodes * sizeof(bool));
@@ -53,13 +53,13 @@ bool isconnexe(RepartitionGraph graph) {
         }
 
         // Si le sous-graphe est connexe pour au moins un joueur, retournez true
-        if (is_player_connexe) {
-            return true;
+        if (all_nodes_visited==false) {
+            return false;
         }
     }
 
     // Aucun sous-graphe connexe trouvé pour aucun joueur
-    return false;
+    return true;
 }
 
 bool is_equitable(RepartitionGraph graph) {
