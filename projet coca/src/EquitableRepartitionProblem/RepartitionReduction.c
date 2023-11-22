@@ -58,7 +58,8 @@ Z3_ast variable_count(Z3_context ctx, int node, int position, int player)
     snprintf(name, 40, "M[%d,%d - %d]", node, position, player);
     return mk_bool_var(ctx, name);
 }
-
+// ------------------------------PARTIE L’allocation est une partition
+// ------------------------------chaque nom de fonction d'ecrit ce quelle fait 
 
 Z3_ast un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (Z3_context ctx, int node , int num_players)
 {
@@ -138,7 +139,8 @@ Z3_ast is_partition(Z3_context ctx, int num_nodes, int num_players)
     return result;
 }
 
-
+// ------------------------PARTIE L’allocation est connexe pour chaque participant
+// ------------------------chaque nom de fonction d'ecrit ce quelle fait 
 
 Z3_ast implication_connexe(Z3_context ctx, int node, int nodeprime, int players, int limite) {
     Z3_ast tabvar[2];
@@ -168,6 +170,7 @@ Z3_ast  verification_arrete (Z3_context ctx, int node, int nodeprime, int player
 }
 
 
+//-------------------------/verifie si la reduction respect la connexité 
 
 Z3_ast isconnexeR(Z3_context ctx,int num_nodes,int num_players,const RepartitionGraph graph){
      
@@ -202,43 +205,63 @@ Z3_ast isconnexeR(Z3_context ctx,int num_nodes,int num_players,const Repartition
     return   Z3_mk_or(ctx, i, tabvard);
 }
 
+// ------------------------PARTIE Chacun est satisfait par sa part
+// ----------------------chaque nom de fonction d'ecrit ce quelle fait 
 
-Z3_ast sommet_i_est_pas_le_Seme_et_Sprime(Z3_context ctx, int node , int players,RepartitionGraph graph)
+Z3_ast sommet_i_est_pas_le_Seme_et_Sprime(Z3_context ctx, int node , int player,RepartitionGraph graph)
 {
     
 
-    int C =  rg_get_total_weights(graph)/rg_get_num_players(graph);
+    int C =  (rg_get_total_weights(graph) - 1) / rg_get_num_players(graph) + 1;
     Z3_ast tabvar[C];
     for (int position = 0; position < C; position++)
     {
-        Z3_ast var = variable_count(ctx,node, position, players);
+        Z3_ast var = variable_count(ctx,node, position, player);
         Z3_ast negated_var = Z3_mk_not(ctx, var);
         tabvar[position] = negated_var;
     }
 
     Z3_ast result = Z3_mk_or(ctx,C, tabvar);
 
-   
 
     return result;
 }
 
-Z3_ast chaque_S_a_un_sommet(Z3_context ctx, int num_nodes , int num_player){
+
+
+Z3_ast chaque_position_a_un_sommet(Z3_context ctx, int position, int node,RepartitionGraph graph,int  player ){
   
-    Z3_ast tabvar[num_nodes];
-    
-    
-
-    for (int node = 0; node < num_nodes; node++)
-    {
-       
-            tabvar[node]=un_sommet_du_graphe_est_alloue_a_au_moins_u_participant (ctx,node ,num_player);
-    }
-
-     Z3_ast result = Z3_mk_and(ctx, num_nodes, tabvar);
-    return result;
+            Z3_ast tabvar[2];
+            tabvar[0] = sommet_i_est_pas_le_Seme_et_Sprime(ctx,node ,player,graph);
+            tabvar[1] = variable_count(ctx,node, position, player); 
+            Z3_ast result =  Z3_mk_and(ctx, 2, (Z3_ast[]){tabvar[0], tabvar[1]});
+           return result;
 }
 
+
+
+
+
+
+
+Z3_ast issatisfaitR(Z3_context ctx,int num_nodes,int num_players,const RepartitionGraph graph,int max_pos){
+ 
+     Z3_ast tabvar[(num_nodes*(num_players*max_pos))];
+     int current =0 ; 
+    for (int node = 0; node < num_nodes; node++){
+         for (int player = 0; player < num_players; player++){
+            for (int pos = 0; pos < max_pos; pos++)
+            {
+                 tabvar[current]=  chaque_position_a_un_sommet(ctx, pos,node,graph,player);
+                 current++;
+            }
+
+         }
+
+    }
+        return   Z3_mk_or(ctx, current, tabvar);
+      
+}
 
 
 
@@ -246,11 +269,13 @@ Z3_ast repartition_reduction(Z3_context ctx, const RepartitionGraph graph)
 {
     int num_players = rg_get_num_players(graph);
     int num_nodes=  rg_get_num_nodes(graph);
-     Z3_ast tabF[2];
+     int max_pos = (rg_get_total_weights(graph) - 1) / num_players + 1;
+     Z3_ast tabF[3];
      tabF[0]= is_partition(ctx,num_nodes, num_players);
      tabF[1] =  isconnexeR(ctx,num_nodes,num_players,graph);
+     tabF[2] =  issatisfaitR(ctx,num_nodes,num_players,graph,max_pos);
    
-    return   Z3_mk_and(ctx, 2, (Z3_ast[]){tabF[0], tabF[1]});;
+    return   Z3_mk_and(ctx, 3, (Z3_ast[]){tabF[0], tabF[1],tabF[2]});;
    
 }
 
