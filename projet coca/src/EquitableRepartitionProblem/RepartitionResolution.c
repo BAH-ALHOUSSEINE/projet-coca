@@ -1,66 +1,64 @@
 #include "RepartitionResolution.h"
 #include <stdlib.h>
 #include <stdio.h>
-void dfs(RepartitionGraph graph, int player, int node, bool *visited) {
-    visited[node] = true;
 
+
+#include <stdbool.h>
+
+// Fonction auxiliaire pour le parcours en profondeur (DFS) afin de trouver une composante connexe
+void dfs(int node, int player, RepartitionGraph graph, bool *visited) {
+    visited[node] = true;
     for (int neighbor = 0; neighbor < rg_get_num_nodes(graph); neighbor++) {
-        if (!visited[neighbor] &&
-            rg_get_player_of_node_in_partition(graph, neighbor) == player &&
+        if (!visited[neighbor] && rg_get_player_of_node_in_partition(graph, neighbor) == player &&
             rg_is_edge(graph, node, neighbor)) {
-            dfs(graph, player, neighbor, visited);
+            dfs(neighbor, player, graph, visited);
         }
     }
 }
 
-// Fonction principale avec parcours en profondeur (DFS)
+// Fonction vérifiant si chaque joueur a une composante connexe
 bool isconnexe(RepartitionGraph graph) {
     int num_nodes = rg_get_num_nodes(graph);
     int num_players = rg_get_num_players(graph);
-     bool all_nodes_visited = true;
+
     for (int player = 0; player < num_players; player++) {
-        bool is_player_connexe = false;  // Supposons d'abord que le sous-graphe n'est pas connexe
+        bool *visited = (bool *)malloc(num_nodes * sizeof(bool));
+        for (int i = 0; i < num_nodes; i++) {
+            visited[i] = false;
+        }
 
-        // Recherchez un nœud attribué au joueur
-        for (int node = 0; node < num_nodes; node++) { 
+        // Trouver le premier nœud associé au joueur
+        int start_node = -1;
+        for (int node = 0; node < num_nodes; node++) {
             if (rg_get_player_of_node_in_partition(graph, node) == player) {
-                // Initialisez un tableau de booléens pour suivre les nœuds visités pendant DFS
-                bool *visited = malloc(num_nodes * sizeof(bool));
-                for (int i = 0; i < num_nodes; i++) {
-                    visited[i] = false;
-                }
-
-                // Effectuez DFS à partir du nœud attribué au joueur
-                dfs(graph, player, node, visited);
-
-                // Vérifiez si tous les nœuds attribués au joueur ont été visités (sous-graphe connexe)
-                bool all_nodes_visited = true;
-                for (int i = 0; i < num_nodes; i++) {
-                    if (rg_get_player_of_node_in_partition(graph, i) == player && !visited[i]) {
-                        all_nodes_visited = false;
-                        break;
-                    }
-                }
-
-                // Libérez la mémoire allouée pour le tableau visited
-                free(visited);
-
-                if (all_nodes_visited) {
-                    is_player_connexe = true;
-                    break;  // Pas besoin de vérifier d'autres nœuds pour ce joueur
-                }
+                start_node = node;
+                break;
             }
         }
 
-        // Si le sous-graphe est connexe pour au moins un joueur, retournez true
-        if (all_nodes_visited==false) {
-            return false;
+        if (start_node == -1) {
+            free(visited);
+            return false; // Aucun nœud associé au joueur, la composante connexe est vide.
         }
+
+        dfs(start_node, player, graph, visited);
+
+        // Vérifier si tous les nœuds associés au joueur ont été visités
+        for (int node = 0; node < num_nodes; node++) {
+            if (rg_get_player_of_node_in_partition(graph, node) == player && !visited[node]) {
+                free(visited);
+                return false; // Il existe une composante connexe incomplète pour ce joueur.
+            }
+        }
+
+        free(visited);
     }
 
-    // Aucun sous-graphe connexe trouvé pour aucun joueur
-    return true;
+    return true; // Chaque joueur a une composante connexe.
 }
+
+
+
 
 bool is_equitable(RepartitionGraph graph) {
     int num_nodes = rg_get_num_nodes(graph);
@@ -117,7 +115,7 @@ bool repartition_brute_force_recursive(RepartitionGraph graph, int node) {
 
 bool repartition_brute_force(RepartitionGraph graph)
 {
-    printf("Brute Force not implemented\n");
+    
     return   repartition_brute_force_recursive(graph, 0);
    
 }
